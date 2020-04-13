@@ -15,9 +15,8 @@ public func configure(_ app: Application) throws {
         tlsConfiguration: nil // TODO: should only have this config for localhost...
     ), as: .mysql)
 
-    app.migrations.add(CreateUser())
-    app.migrations.add(CreateTodo())
-    app.migrations.add(UpdateTodo())
+    // add migrations
+    try migrations(app)
 
     // register routes
     try routes(app)

@@ -3,12 +3,17 @@ import Vapor
 
 struct TodoController {
     func index(req: Request) throws -> EventLoopFuture<[Todo]> {
-        return Todo.query(on: req.db).all()
+        Todo.query(on: req.db).with(\.$user).all()
     }
 
     func get(req: Request) throws -> EventLoopFuture<Todo> {
-        let todoID = req.parameters.get("todoID", as: UUID.self)
-        return Todo.find(todoID, on: req.db).unwrap(or: Abort(.notFound))
+        guard let todoID = req.parameters.get("todoID", as: UUID.self) else {
+            throw Abort(.badRequest, reason: "Missing todoID in URL")
+        }
+        return Todo.query(on: req.db).with(\.$user)
+            .filter(\.$id == todoID)
+            .first()
+            .unwrap(or: Abort(.notFound))
     }
 
     func create(req: Request) throws -> EventLoopFuture<Todo> {
@@ -17,26 +22,37 @@ struct TodoController {
     }
 
     func update(req: Request) throws -> EventLoopFuture<Todo> {
-        let todoID = req.parameters.get("todoID", as: UUID.self)
+        guard let todoID = req.parameters.get("todoID", as: UUID.self) else {
+            throw Abort(.badRequest, reason: "Missing todoID in URL")
+        }
         let updatedTodoRequestBody = try req.content.decode(UpdateTodoRequestBody.self)
-        return Todo
-            .find(todoID, on: req.db)
+        return Todo.query(on: req.db).with(\.$user)
+            .filter(\.$id == todoID)
+            .first()
             .unwrap(or: Abort(.notFound))
             .flatMap { todo in
-                todo.title = updatedTodoRequestBody.newTitle
-                return todo.update(on: req.db).transform(to: todo)
+                if let newTitle = updatedTodoRequestBody.newTitle, !newTitle.isEmpty {
+                    todo.title = newTitle
+                }
+
+                if let newStatus = updatedTodoRequestBody.status {
+                    todo.status = newStatus
+                }
+
+                return todo.save(on: req.db).transform(to: todo)
             }
     }
 
     func delete(req: Request) throws -> EventLoopFuture<HTTPStatus> {
-        return Todo.find(req.parameters.get("todoID"), on: req.db)
+        Todo.find(req.parameters.get("todoID"), on: req.db)
             .unwrap(or: Abort(.notFound))
             .flatMap { $0.delete(on: req.db) }
             .transform(to: .ok)
     }
 
     struct UpdateTodoRequestBody: Content {
-        let newTitle: String
+        let newTitle: String?
+        let status: TodoStatus?
     }
 }
 

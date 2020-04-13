@@ -1,15 +1,19 @@
 import Fluent
 
 struct CreateUser: Migration {
+    let model = User()
+
     func prepare(on database: Database) -> EventLoopFuture<Void> {
-        database.schema("users")
+        return database.schema(User.schema)
             .id()
-            .field("username", .string, .required)
-            .unique(on: "username")
+            .field(model.$username.key, .string, .required)
+            .unique(on: model.$username.key)
+            .field(model.$createdAt.field.key, .datetime)
+            .field(model.$updatedAt.field.key, .datetime)
             .create()
     }
 
     func revert(on database: Database) -> EventLoopFuture<Void> {
-        database.schema("users").delete()
+        database.schema(User.schema).delete()
     }
 }

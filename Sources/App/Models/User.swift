@@ -10,6 +10,12 @@ final class User: Model, Content {
     @Field(key: "username")
     var username: String
 
+    @Timestamp(key: "createdAt", on: .create)
+    var createdAt: Date?
+
+    @Timestamp(key: "updatedAt", on: .update)
+    var updatedAt: Date?
+
     @Children(for: \.$user)
     var todos: [Todo]
 
